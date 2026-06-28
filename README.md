@@ -79,6 +79,19 @@ The stream processor exposes metrics on `:9101/metrics` with its own dashboard
 Panels: bars emitted, open windows, late events, watermark lag, and throughput
 (trades/s vs bars/s).
 
+## Web dashboard (Phase 4)
+
+React + ECharts app: live candlesticks (REST history seed + WebSocket updates)
+with SMA5/SMA20 overlays, plus a Dashboards tab embedding the Grafana panels.
+
+```powershell
+cd web; npm install; npm run dev   # http://localhost:5173
+```
+Requires the API gateway: `cd services/api; go run .` (REST :8090, WS /ws).
+
+![Live trading view](docs/images/phase4-live-dashboard.png)
+![Embedded health dashboards](docs/images/phase4-health-dashboard.png)
+
 ## Local setup
 
 ### Install Go (Windows)

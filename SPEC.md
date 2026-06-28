@@ -89,7 +89,7 @@ Exchange WebSockets (Binance / Coinbase — free)
 | 1 | Ingestion (Rust) → Redpanda, partitioned by symbol, reconnect + backpressure | ✅ done |
 | 2 | Stream processor (Go): tumbling-window VWAP/MA + out-of-order handling | ✅ done |
 | 3 | Dual sink: TimescaleDB (hot) + Postgres (history); idempotent writes | ✅ done |
-| 4 | API gateway (Go): REST + WebSocket + Redis cache/fanout; React dashboard | ⬜ |
+| 4 | API gateway (Go): REST + WebSocket + Redis cache/fanout; React dashboard | ✅ done |
 | 4b | Deploy live on free tiers + Cloudflare Pages/Workers (CDN) | ⬜ |
 | 5 | **CDC connector (Go)** → ClickHouse/OpenSearch (DEFERRED from v1) | ⬜ |
 | 6 | Observability: Prometheus/Grafana dashboards, OTel traces, SLOs | ⬜ |
