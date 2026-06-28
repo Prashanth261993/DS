@@ -10,6 +10,11 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "syn
 # WebSocket client. native-tls uses Windows SChannel — no OpenSSL needed.
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
+# Kafka producer. default-features=false drops ssl/sasl/libz so the bundled
+# librdkafka builds cleanly on Windows with just CMake + MSVC (plaintext local).
+rdkafka = { version = "0.36", default-features = false, features = ["cmake-build", "tokio"] }
+# Load .env for local dev convenience (KAFKA_BROKERS, etc.)
+dotenvy = "0.15"
 # (De)serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

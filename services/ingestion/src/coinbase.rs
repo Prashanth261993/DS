@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
+use tokio::sync::mpsc::Sender;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
@@ -81,14 +82,15 @@ fn subscribe_message(products: &[&str]) -> String {
     .to_string()
 }
 
-/// Connect once, subscribe, and stream trades, invoking `on_trade` for each.
+/// Connect once, subscribe, and stream trades, sending each into `tx`.
 ///
-/// Step A: this runs a single connection and prints trades. Reconnect-with-backoff
-/// and the Kafka producer path are added in later steps.
-pub async fn run_feed<F>(products: &[&str], mut on_trade: F) -> Result<()>
-where
-    F: FnMut(Trade),
-{
+/// Sending on a bounded channel is where backpressure originates: if the
+/// producer task can't keep up and the channel fills, `tx.send().await`
+/// suspends this read loop, which in turn stops draining the TCP socket and
+/// propagates backpressure to the exchange (lesson 03).
+///
+/// Step B: single connection. Reconnect-with-backoff is added in Step C.
+pub async fn run_feed(products: &[&str], tx: Sender<Trade>) -> Result<()> {
     info!(url = COINBASE_WS_URL, ?products, "connecting to Coinbase feed");
     let (ws_stream, _resp) = connect_async(COINBASE_WS_URL)
         .await
@@ -108,7 +110,13 @@ where
                 match serde_json::from_str::<CoinbaseMessage>(&txt) {
                     Ok(CoinbaseMessage::Match(m) | CoinbaseMessage::LastMatch(m)) => {
                         match m.into_trade() {
-                            Ok(trade) => on_trade(trade),
+                            Ok(trade) => {
+                                // Backpressure point #1: awaits if the channel is full.
+                                if tx.send(trade).await.is_err() {
+                                    warn!("trade receiver dropped; stopping feed");
+                                    break;
+                                }
+                            }
                             Err(e) => warn!(error = %e, "failed to convert match"),
                         }
                     }
