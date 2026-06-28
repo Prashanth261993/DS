@@ -88,8 +88,8 @@ func main() {
 			barsEmitted.Inc()
 			emitted++
 			if emitted%50 == 0 {
-				log.Printf("emitted=%d last: %s start=%d ohlc=%.2f/%.2f/%.2f/%.2f vol=%.4f vwap=%.2f n=%d",
-					emitted, bar.Symbol, bar.WindowStart, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.VWAP, bar.Count)
+				log.Printf("emitted=%d last: %s start=%d ohlc=%.2f/%.2f/%.2f/%.2f vol=%.4f vwap=%.2f sma5=%.2f sma20=%.2f n=%d",
+					emitted, bar.Symbol, bar.WindowStart, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.VWAP, bar.SMA5, bar.SMA20, bar.Count)
 			}
 		}
 		openWindows.Set(float64(w.Open()))

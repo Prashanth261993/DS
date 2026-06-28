@@ -22,9 +22,9 @@ scrape_configs:
       - targets: ["host.docker.internal:9100"]
 
   # --- Phase 2+: uncomment as services come online ---
-  # - job_name: stream-processor # Go stream processor
-  #   static_configs:
-  #     - targets: ["stream-processor:9101"]
+  - job_name: stream-processor # Go stream processor
+    static_configs:
+      - targets: ["host.docker.internal:9101"]
   # - job_name: api-gateway      # Go API gateway
   #   static_configs:
   #     - targets: ["api-gateway:9102"]

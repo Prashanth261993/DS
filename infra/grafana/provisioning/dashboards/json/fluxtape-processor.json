@@ -1,0 +1,63 @@
+{
+  "uid": "fluxtape-processor",
+  "title": "FluxTape — Stream Processor",
+  "tags": ["fluxtape", "processor"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Bars emitted (total)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [ { "refId": "A", "expr": "processor_bars_emitted_total", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } } ],
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] } }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Open windows", "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [ { "refId": "A", "expr": "processor_open_windows", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } } ],
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 50 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Late events (total)", "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [ { "refId": "A", "expr": "processor_late_events_total", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } } ],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Watermark lag", "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [ { "refId": "A", "expr": "processor_watermark_lag_ms", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } } ],
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5000 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Throughput", "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rate(processor_trades_processed_total[1m])", "legendFormat": "trades/s", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } },
+        { "refId": "B", "expr": "rate(processor_bars_emitted_total[1m])", "legendFormat": "bars/s", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Watermark lag & open windows", "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "processor_watermark_lag_ms", "legendFormat": "watermark lag (ms)", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } },
+        { "refId": "B", "expr": "processor_open_windows", "legendFormat": "open windows", "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 5 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } }
+    }
+  ]
+}

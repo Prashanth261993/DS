@@ -71,6 +71,14 @@ Panels: feed connection status, channel depth (live backpressure signal),
 reconnect/error counters, throughput (received vs published), and publish
 latency percentiles (p50/p95/p99).
 
+The stream processor exposes metrics on `:9101/metrics` with its own dashboard
+(http://localhost:3000/d/fluxtape-processor):
+
+![FluxTape processor dashboard](docs/images/phase2-processor-dashboard.png)
+
+Panels: bars emitted, open windows, late events, watermark lag, and throughput
+(trades/s vs bars/s).
+
 ## Local setup
 
 ### Install Go (Windows)

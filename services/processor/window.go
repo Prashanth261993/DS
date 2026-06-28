@@ -3,14 +3,19 @@ package main
 // Tumbling-window aggregation engine (event-time, watermark-driven).
 // See docs/lessons/04-windowing-watermarks.md.
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 const (
 	windowMs        = 1000 // 1-second tumbling windows
 	allowedLateness = 2000 // ms; watermark = maxEvent - allowedLateness (lesson 04)
+	smaShort        = 5    // bars (lesson 15)
+	smaLong         = 20   // bars
 )
 
-// Bar is a 1-second OHLCV+VWAP candle for one symbol.
+// Bar is a 1-second OHLCV+VWAP candle for one symbol, with rolling SMAs.
 type Bar struct {
 	Symbol      string  `json:"symbol"`
 	WindowStart int64   `json:"window_start_ms"`
@@ -21,6 +26,8 @@ type Bar struct {
 	Volume      float64 `json:"volume"`
 	VWAP        float64 `json:"vwap"`
 	Count       int     `json:"count"`
+	SMA5        float64 `json:"sma5"`
+	SMA20       float64 `json:"sma20"`
 }
 
 // acc is the in-progress aggregate for one (symbol, window).
@@ -39,11 +46,12 @@ type key struct {
 // Windower holds open windows keyed by (symbol, windowStart) and a watermark.
 type Windower struct {
 	windows  map[key]*acc
-	maxEvent int64 // highest event time seen
+	maxEvent int64              // highest event time seen
+	history  map[string][]float64 // per-symbol last N closes (lesson 15)
 }
 
 func NewWindower() *Windower {
-	return &Windower{windows: make(map[key]*acc)}
+	return &Windower{windows: make(map[key]*acc), history: make(map[string][]float64)}
 }
 
 func windowStart(eventMs int64) int64 { return eventMs - eventMs%windowMs }
@@ -103,7 +111,42 @@ func (w *Windower) CloseReady() []Bar {
 			delete(w.windows, k)
 		}
 	}
+	// Sort by (start, symbol) so per-symbol rolling SMAs stay time-ordered.
+	sort.Slice(bars, func(i, j int) bool {
+		if bars[i].WindowStart != bars[j].WindowStart {
+			return bars[i].WindowStart < bars[j].WindowStart
+		}
+		return bars[i].Symbol < bars[j].Symbol
+	})
+	for i := range bars {
+		bars[i].SMA5, bars[i].SMA20 = w.updateSMA(bars[i].Symbol, bars[i].Close)
+	}
 	return bars
+}
+
+// updateSMA appends a close to the symbol's rolling history and returns SMA5/SMA20.
+func (w *Windower) updateSMA(symbol string, close float64) (sma5, sma20 float64) {
+	h := append(w.history[symbol], close)
+	if len(h) > smaLong {
+		h = h[len(h)-smaLong:]
+	}
+	w.history[symbol] = h
+	return mean(h, smaShort), mean(h, smaLong)
+}
+
+// mean returns the average of the last n elements (or fewer if not yet enough).
+func mean(h []float64, n int) float64 {
+	if len(h) < n {
+		n = len(h)
+	}
+	if n == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, v := range h[len(h)-n:] {
+		sum += v
+	}
+	return sum / float64(n)
 }
 
 // Open returns how many windows are currently buffered (a gauge).
