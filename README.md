@@ -29,6 +29,10 @@ See [Local setup](#local-setup) for install steps.
 
 ## Quick start (Phase 0 — local infrastructure)
 
+One-command runners: `make init && make up` (Linux/macOS) or
+`./dev.ps1 init; ./dev.ps1 all` (Windows) bring up infra + all 5 services + web.
+Manual steps below.
+
 ```powershell
 # 1. Create your local env file (gitignored)
 Copy-Item .env.example .env
