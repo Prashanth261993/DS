@@ -98,6 +98,15 @@ Exchange WebSockets (Binance / Coinbase — free)
 Each phase = one clean PR with a writeup, so the commit history tells a
 Staff-level story.
 
+### Backlog / future enhancements (post-v1)
+- **Serialization migration:** v1 publishes **JSON** to the `trades` topic for
+  readability and zero setup. Migrate to **Avro or Protobuf + a Schema Registry**
+  for compactness and enforced schema evolution. Worth an ADR when done.
+- **Multi-exchange ingestion:** v1 ingests **Coinbase** (US-accessible). Add
+  Binance/others behind a common normalized `Trade` schema.
+- **Decimal money type:** replace `f64` price/quantity with a fixed-point/decimal
+  type to avoid float rounding on monetary values.
+
 ---
 
 ## 6. Free-tier hosting targets (to validate later)
