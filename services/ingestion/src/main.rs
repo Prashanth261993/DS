@@ -12,6 +12,7 @@ mod trade;
 use std::net::SocketAddr;
 
 use anyhow::{Context, Result};
+use metrics::{counter, describe_counter, describe_gauge, describe_histogram, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::sync::mpsc;
 use tracing::info;
@@ -46,6 +47,8 @@ async fn main() -> Result<()> {
         .context("install Prometheus metrics exporter")?;
     info!(%addr, "metrics endpoint listening at /metrics");
 
+    register_metrics();
+
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:19092".to_string());
     info!(%brokers, "FluxTape ingestion service starting (Step C)");
 
@@ -74,4 +77,23 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Describe and zero-initialize all metrics at startup so every series exists
+/// from t0 (avoids "No data" panels and makes rate() correct from the start).
+fn register_metrics() {
+    describe_counter!("ingestion_trades_received_total", "Trades received from the feed");
+    describe_counter!("ingestion_trades_published_total", "Trades published to Kafka");
+    describe_counter!("ingestion_publish_errors_total", "Failed Kafka deliveries");
+    describe_counter!("ingestion_ws_reconnects_total", "WebSocket reconnect attempts");
+    describe_gauge!("ingestion_channel_depth", "Current depth of the WS->producer channel");
+    describe_gauge!("ingestion_ws_connected", "1 if the feed is connected, else 0");
+    describe_histogram!("ingestion_publish_latency_seconds", "Kafka publish latency in seconds");
+
+    counter!("ingestion_trades_received_total").increment(0);
+    counter!("ingestion_trades_published_total").increment(0);
+    counter!("ingestion_publish_errors_total").increment(0);
+    counter!("ingestion_ws_reconnects_total").increment(0);
+    gauge!("ingestion_channel_depth").set(0.0);
+    gauge!("ingestion_ws_connected").set(0.0);
 }

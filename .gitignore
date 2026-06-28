@@ -33,3 +33,6 @@ Thumbs.db
 data/
 *.pid
 .github/copilot-instructions.md
+
+# Playwright MCP scratch output (screenshots saved explicitly to docs/images)
+.playwright-mcp/
