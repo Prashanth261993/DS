@@ -96,51 +96,6 @@ Requires the API gateway: `cd services/api; go run .` (REST :8090, WS /ws).
 ![Live trading view](docs/images/phase4-live-dashboard.png)
 ![Embedded health dashboards](docs/images/phase4-health-dashboard.png)
 
-## Local setup
-
-### Install Go (Windows)
-
-Recommended (winget):
-
-```powershell
-winget install --id GoLang.Go -e
-```
-
-Then **open a new terminal** and verify:
-
-```powershell
-go version    # expect: go version go1.23.x windows/amd64
-```
-
-Alternative: download the MSI installer from https://go.dev/dl/ and run it.
-The installer adds Go to `PATH` automatically.
-
-### Install Rust (Windows)
-
-Rust on Windows needs the **MSVC C++ build tools** plus `rustup`.
-
-```powershell
-# 1. C++ build tools (Rust links against the MSVC toolchain)
-winget install --id Microsoft.VisualStudio.2022.BuildTools -e `
-  --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-
-# 2. rustup (manages Rust toolchains)
-winget install --id Rustlang.Rustup -e
-```
-
-Then **open a new terminal** and verify:
-
-```powershell
-rustc --version   # expect: rustc 1.8x.x
-cargo --version   # expect: cargo 1.8x.x
-```
-
-Alternative: download `rustup-init.exe` from https://rustup.rs and run it
-(choose the default stable-msvc toolchain).
-
-> If `rustc`/`cargo` aren't found after install, restart your terminal so the
-> updated `PATH` (which includes `%USERPROFILE%\.cargo\bin`) takes effect.
-
 ## Project layout
 
 ```
