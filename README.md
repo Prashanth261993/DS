@@ -20,6 +20,12 @@ make deploy-web    # React -> Cloudflare Pages
 Note: managed Kafka needs TLS+SASL (set KAFKA_SASL_* secrets); free Postgres
 has no TimescaleDB so `bars` is a plain table.
 
+**Chosen v1 path (all free):** one Oracle always-free VM runs the whole stack:
+```bash
+make prod-up       # builds + runs 6 services + infra on the VM
+```
+Web deploys to Cloudflare/Vercel pointing at the VM API.
+
 ## Tech stack
 
 | Layer | Tech |

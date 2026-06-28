@@ -1,0 +1,50 @@
+# FluxTape production stack — single VM (Oracle always-free). Builds app images
+# and runs them alongside infra. Web is deployed separately to Cloudflare/Vercel.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Then apply schema: Get-Content infra/db/schema.sql | docker exec -i fluxtape-timescaledb psql -U fluxtape -d fluxtape
+
+name: fluxtape
+
+services:
+  ingestion:
+    build: { context: ., dockerfile: services/ingestion/Dockerfile }
+    environment: { KAFKA_BROKERS: redpanda:9092, RUST_LOG: info }
+    depends_on: { redpanda: { condition: service_healthy } }
+    networks: [fluxtape]
+    restart: unless-stopped
+
+  processor:
+    build: { context: ., dockerfile: services/Dockerfile.go, args: { SVC: processor } }
+    environment: { KAFKA_BROKERS: redpanda:9092 }
+    depends_on: { redpanda: { condition: service_healthy } }
+    networks: [fluxtape]
+    restart: unless-stopped
+
+  bar-sink:
+    build: { context: ., dockerfile: services/Dockerfile.go, args: { SVC: bar-sink } }
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      DATABASE_URL: postgres://fluxtape:fluxtape@timescaledb:5432/fluxtape
+    depends_on: { redpanda: { condition: service_healthy }, timescaledb: { condition: service_healthy } }
+    networks: [fluxtape]
+    restart: unless-stopped
+
+  trade-sink:
+    build: { context: ., dockerfile: services/Dockerfile.go, args: { SVC: trade-sink } }
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      DATABASE_URL: postgres://fluxtape:fluxtape@timescaledb:5432/fluxtape
+    depends_on: { redpanda: { condition: service_healthy }, timescaledb: { condition: service_healthy } }
+    networks: [fluxtape]
+    restart: unless-stopped
+
+  api:
+    build: { context: ., dockerfile: services/Dockerfile.go, args: { SVC: api } }
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      DATABASE_URL: postgres://fluxtape:fluxtape@timescaledb:5432/fluxtape
+      REDIS_URL: redis://redis:6379
+    ports: ["8090:8090"]
+    depends_on: { redpanda: { condition: service_healthy }, timescaledb: { condition: service_healthy }, redis: { condition: service_healthy } }
+    networks: [fluxtape]
+    restart: unless-stopped

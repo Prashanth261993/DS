@@ -117,12 +117,12 @@ Staff-level story.
 
 ## 6. Free-tier hosting targets (to validate later)
 
-- **Pub/sub:** Upstash Kafka / local Redpanda
-- **Redis:** Upstash Redis free tier / local
-- **Postgres + Timescale:** Neon / Supabase / local
-- **CDN + static + edge:** Cloudflare Pages + Workers
-- **Dashboards:** Grafana Cloud free tier
-- **Compute for services:** Fly.io / Railway free allowances / local docker-compose
+- **Chosen v1 path:** single **Oracle Cloud always-free VM** runs the whole stack
+  via `docker-compose.prod.yml` (all 6 services + Redpanda/Timescale/Postgres/
+  Redis). Plaintext internal network → no SASL; Timescale image keeps hypertables.
+- **Web:** Cloudflare Pages (or Vercel) CDN, pointing at the VM's API.
+- **Alternatives:** Fly.io (~$3/mo, no free tier for new users), Render (web-only
+  free, cold starts), Cloud Run (CC required). Per-service fly.toml kept as ref.
 
 ---
 
