@@ -3,10 +3,14 @@
 //! Docs: https://docs.cdp.coinbase.com/exchange/docs/websocket-overview
 //! We subscribe to the `matches` channel, which emits one message per trade.
 
+use std::time::{Duration, Instant};
+
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
+use metrics::{counter, gauge};
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
+use tokio::time::sleep;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
@@ -82,15 +86,55 @@ fn subscribe_message(products: &[&str]) -> String {
     .to_string()
 }
 
+/// Supervise the feed: connect, stream, and on any disconnect/error reconnect
+/// with exponential backoff + full jitter (lesson 13). Loops forever; the
+/// channel `tx` is reused across reconnects so the downstream producer never
+/// restarts. Returns only if the trade receiver is dropped.
+pub async fn run_with_reconnect(products: &[&str], tx: Sender<Trade>) {
+    const BASE: Duration = Duration::from_secs(1);
+    const MAX: Duration = Duration::from_secs(30);
+    /// A connection healthy for at least this long resets the backoff.
+    const HEALTHY: Duration = Duration::from_secs(60);
+
+    let mut backoff = BASE;
+    loop {
+        let started = Instant::now();
+        match connect_and_stream(products, &tx).await {
+            Ok(()) => warn!("feed connection closed; will reconnect"),
+            Err(e) => warn!(error = %e, "feed connection error; will reconnect"),
+        }
+        gauge!("ingestion_ws_connected").set(0.0);
+
+        // The receiver was dropped (shutdown) — stop supervising.
+        if tx.is_closed() {
+            info!("trade receiver closed; stopping feed supervisor");
+            return;
+        }
+
+        counter!("ingestion_ws_reconnects_total").increment(1);
+
+        // Reset backoff if the connection stayed healthy for a while.
+        if started.elapsed() >= HEALTHY {
+            backoff = BASE;
+        }
+
+        // Full jitter: sleep a random duration in [0, backoff].
+        let wait = backoff.mul_f64(rand::random::<f64>());
+        warn!(?wait, ?backoff, "backing off before reconnect");
+        sleep(wait).await;
+
+        // Exponential increase, capped.
+        backoff = (backoff * 2).min(MAX);
+    }
+}
+
 /// Connect once, subscribe, and stream trades, sending each into `tx`.
 ///
 /// Sending on a bounded channel is where backpressure originates: if the
 /// producer task can't keep up and the channel fills, `tx.send().await`
 /// suspends this read loop, which in turn stops draining the TCP socket and
 /// propagates backpressure to the exchange (lesson 03).
-///
-/// Step B: single connection. Reconnect-with-backoff is added in Step C.
-pub async fn run_feed(products: &[&str], tx: Sender<Trade>) -> Result<()> {
+async fn connect_and_stream(products: &[&str], tx: &Sender<Trade>) -> Result<()> {
     info!(url = COINBASE_WS_URL, ?products, "connecting to Coinbase feed");
     let (ws_stream, _resp) = connect_async(COINBASE_WS_URL)
         .await
@@ -101,6 +145,7 @@ pub async fn run_feed(products: &[&str], tx: Sender<Trade>) -> Result<()> {
         .send(Message::Text(subscribe_message(products)))
         .await
         .context("send subscribe")?;
+    gauge!("ingestion_ws_connected").set(1.0);
     info!("subscribed; streaming trades");
 
     while let Some(frame) = read.next().await {
@@ -111,11 +156,14 @@ pub async fn run_feed(products: &[&str], tx: Sender<Trade>) -> Result<()> {
                     Ok(CoinbaseMessage::Match(m) | CoinbaseMessage::LastMatch(m)) => {
                         match m.into_trade() {
                             Ok(trade) => {
+                                counter!("ingestion_trades_received_total").increment(1);
                                 // Backpressure point #1: awaits if the channel is full.
                                 if tx.send(trade).await.is_err() {
                                     warn!("trade receiver dropped; stopping feed");
                                     break;
                                 }
+                                // Live channel depth = backpressure signal (lesson 09).
+                                gauge!("ingestion_channel_depth").increment(1.0);
                             }
                             Err(e) => warn!(error = %e, "failed to convert match"),
                         }

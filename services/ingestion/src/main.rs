@@ -1,14 +1,18 @@
 //! FluxTape ingestion service.
 //!
-//! Phase 1 / Step B: connect to the Coinbase trade feed, normalize each trade,
+//! Phase 1 / Step C: connect to the Coinbase trade feed, normalize each trade,
 //! and publish it to the Redpanda `trades` topic (keyed by symbol) through a
-//! bounded channel that provides backpressure. Step C adds metrics + reconnect.
+//! bounded channel that provides backpressure. Adds reconnect-with-backoff and
+//! Prometheus metrics exposed on /metrics.
 
 mod coinbase;
 mod producer;
 mod trade;
 
-use anyhow::Result;
+use std::net::SocketAddr;
+
+use anyhow::{Context, Result};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::sync::mpsc;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -22,6 +26,9 @@ const PRODUCTS: &[&str] = &["BTC-USD", "ETH-USD", "SOL-USD"];
 /// Larger = absorbs longer bursts but more memory/latency (lesson 03).
 const CHANNEL_CAPACITY: usize = 10_000;
 
+/// Address the Prometheus /metrics endpoint listens on.
+const METRICS_ADDR: ([u8; 4], u16) = ([0, 0, 0, 0], 9100);
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load .env (KAFKA_BROKERS, etc.) for local dev; ignore if absent.
@@ -31,8 +38,16 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
+    // Install the Prometheus exporter; it serves GET /metrics on METRICS_ADDR.
+    let addr = SocketAddr::from(METRICS_ADDR);
+    PrometheusBuilder::new()
+        .with_http_listener(addr)
+        .install()
+        .context("install Prometheus metrics exporter")?;
+    info!(%addr, "metrics endpoint listening at /metrics");
+
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:19092".to_string());
-    info!(%brokers, "FluxTape ingestion service starting (Step B: producing to Kafka)");
+    info!(%brokers, "FluxTape ingestion service starting (Step C)");
 
     // The bounded channel: WS reader -> producer task. This is backpressure point #1.
     let (tx, rx) = mpsc::channel::<Trade>(CHANNEL_CAPACITY);
@@ -41,11 +56,16 @@ async fn main() -> Result<()> {
     let kafka = producer::build_producer(&brokers)?;
     let producer_handle = tokio::spawn(producer::run_producer(kafka, rx));
 
-    // Run the feed, sending into `tx`. When this returns (e.g. disconnect),
-    // `tx` is dropped, the channel closes, and the producer task finishes.
-    let feed_result = coinbase::run_feed(PRODUCTS, tx).await;
-    if let Err(e) = &feed_result {
-        tracing::error!(error = %e, "feed ended with error");
+    // Run the reconnect supervisor until Ctrl+C. The supervisor owns `tx`; when
+    // this select drops it (on shutdown), the channel closes and the producer
+    // drains its remaining buffered trades before exiting.
+    tokio::select! {
+        _ = coinbase::run_with_reconnect(PRODUCTS, tx) => {
+            info!("feed supervisor ended");
+        }
+        _ = tokio::signal::ctrl_c() => {
+            info!("received Ctrl+C; shutting down");
+        }
     }
 
     // Wait for the producer to drain remaining buffered trades.
@@ -53,5 +73,5 @@ async fn main() -> Result<()> {
         tracing::error!(error = %e, "producer task join error");
     }
 
-    feed_result
+    Ok(())
 }

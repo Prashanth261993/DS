@@ -3,7 +3,10 @@
 //!
 //! See docs/lessons/12-kafka-producer-internals.md and 03-backpressure.md.
 
+use std::time::Instant;
+
 use anyhow::{Context, Result};
+use metrics::{counter, gauge, histogram};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::Timeout;
 use rdkafka::ClientConfig;
@@ -33,6 +36,9 @@ pub async fn run_producer(producer: FutureProducer, mut rx: Receiver<Trade>) {
     let mut produced: u64 = 0;
 
     while let Some(trade) = rx.recv().await {
+        // We pulled one off the channel: depth drops by one (lesson 09).
+        gauge!("ingestion_channel_depth").decrement(1.0);
+
         let payload = match serde_json::to_vec(&trade) {
             Ok(bytes) => bytes,
             Err(e) => {
@@ -47,14 +53,21 @@ pub async fn run_producer(producer: FutureProducer, mut rx: Receiver<Trade>) {
 
         // Timeout::Never => if librdkafka's internal queue is full, AWAIT space
         // instead of erroring. This is backpressure point #2 (lesson 03).
+        let started = Instant::now();
         match producer.send(record, Timeout::Never).await {
             Ok((partition, offset)) => {
                 produced += 1;
+                counter!("ingestion_trades_published_total").increment(1);
+                histogram!("ingestion_publish_latency_seconds")
+                    .record(started.elapsed().as_secs_f64());
                 if produced % 500 == 0 {
                     info!(produced, partition, offset, "published trades (running total)");
                 }
             }
-            Err((e, _msg)) => error!(error = %e, symbol = %key, "failed to deliver trade"),
+            Err((e, _msg)) => {
+                counter!("ingestion_publish_errors_total").increment(1);
+                error!(error = %e, symbol = %key, "failed to deliver trade");
+            }
         }
     }
 
