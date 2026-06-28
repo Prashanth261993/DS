@@ -5,6 +5,7 @@ docs/lessons/
 bin/
 *.test
 *.out
+*.exe
 vendor/
 
 # Rust
