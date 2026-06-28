@@ -1,0 +1,35 @@
+# Personal learning notes — kept local, not part of the published repo
+docs/lessons/
+
+# Go
+bin/
+*.test
+*.out
+vendor/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Node / frontend
+node_modules/
+dist/
+.next/
+*.local
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Docker / data volumes
+data/
+*.pid
+.github/copilot-instructions.md
