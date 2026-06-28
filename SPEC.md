@@ -86,7 +86,7 @@ Exchange WebSockets (Binance / Coinbase — free)
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
 | 0 | Repo scaffolding, SPEC, ADRs, docker-compose skeleton | ✅ done |
-| 1 | Ingestion (Rust) → Redpanda, partitioned by symbol, reconnect + backpressure | ⬜ |
+| 1 | Ingestion (Rust) → Redpanda, partitioned by symbol, reconnect + backpressure | ✅ done |
 | 2 | Stream processor (Go): tumbling-window VWAP/MA + out-of-order handling | ⬜ |
 | 3 | Dual sink: TimescaleDB (hot) + Postgres (history); idempotent writes | ⬜ |
 | 4 | API gateway (Go): REST + WebSocket + Redis cache/fanout; React dashboard | ⬜ |
@@ -97,6 +97,21 @@ Exchange WebSockets (Binance / Coinbase — free)
 
 Each phase = one clean PR with a writeup, so the commit history tells a
 Staff-level story.
+
+### Backlog / future enhancements (post-v1)
+- **Serialization migration:** v1 publishes **JSON** to the `trades` topic for
+  readability and zero setup. Migrate to **Avro or Protobuf + a Schema Registry**
+  for compactness and enforced schema evolution. Worth an ADR when done.
+- **Multi-exchange ingestion:** v1 ingests **Coinbase** (US-accessible). Add
+  Binance/others behind a common normalized `Trade` schema.
+- **Decimal money type:** replace `f64` price/quantity with a fixed-point/decimal
+  type to avoid float rounding on monetary values.
+- **Partition skew / hot-key handling:** v1 keys the `trades` topic by symbol
+  (preserves per-symbol ordering). A dominant symbol (e.g. BTC) can create a hot
+  partition under load. During load/chaos testing (Phase 7), monitor per-partition
+  consumer lag; if skewed, mitigate via (a) more partitions, (b) an explicit
+  balanced partitioner, or (c) sub-keying the hot symbol (`SYMBOL#n`). Sub-keying
+  is safe here because the core aggregations (VWAP, MA, volume) are commutative.
 
 ---
 

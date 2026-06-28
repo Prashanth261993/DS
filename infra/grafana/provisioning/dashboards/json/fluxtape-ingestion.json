@@ -1,0 +1,268 @@
+{
+  "uid": "fluxtape-ingestion",
+  "title": "FluxTape — Ingestion",
+  "tags": ["fluxtape", "ingestion"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Feed connected",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_ws_connected",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Channel depth (backpressure)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_channel_depth",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 8000 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Reconnects (total)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_ws_reconnects_total",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Publish errors (total)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_publish_errors_total",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Throughput (trades/sec)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(ingestion_trades_received_total[1m])",
+          "legendFormat": "received",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        },
+        {
+          "refId": "B",
+          "expr": "rate(ingestion_trades_published_total[1m])",
+          "legendFormat": "published",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Publish latency (seconds)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_publish_latency_seconds{quantile=\"0.5\"}",
+          "legendFormat": "p50",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        },
+        {
+          "refId": "B",
+          "expr": "ingestion_publish_latency_seconds{quantile=\"0.95\"}",
+          "legendFormat": "p95",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        },
+        {
+          "refId": "C",
+          "expr": "ingestion_publish_latency_seconds{quantile=\"0.99\"}",
+          "legendFormat": "p99",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Channel depth over time (backpressure signal)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ingestion_channel_depth",
+          "legendFormat": "depth",
+          "datasource": { "type": "prometheus", "uid": "fluxtape-prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 15
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    }
+  ]
+}

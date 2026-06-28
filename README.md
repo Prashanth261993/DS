@@ -58,6 +58,19 @@ docker compose down        # stop containers, keep data
 docker compose down -v     # stop AND wipe data volumes (fresh start)
 ```
 
+## Dashboards
+
+The ingestion service exposes Prometheus metrics on `:9100/metrics`, scraped by
+Prometheus and visualized in a provisioned Grafana dashboard
+(**Dashboards → FluxTape → FluxTape — Ingestion**, or
+http://localhost:3000/d/fluxtape-ingestion):
+
+![FluxTape ingestion dashboard](docs/images/phase1-ingestion-dashboard.png)
+
+Panels: feed connection status, channel depth (live backpressure signal),
+reconnect/error counters, throughput (received vs published), and publish
+latency percentiles (p50/p95/p99).
+
 ## Local setup
 
 ### Install Go (Windows)

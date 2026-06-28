@@ -15,10 +15,13 @@ scrape_configs:
     static_configs:
       - targets: ["redpanda:9644"]
 
-  # --- Phase 1+: uncomment as services come online ---
-  # - job_name: ingestion        # Rust ingestion service
-  #   static_configs:
-  #     - targets: ["ingestion:9100"]
+  # Ingestion service runs on the host during dev; reach it from the Prometheus
+  # container via host.docker.internal. (When containerized, use "ingestion:9100".)
+  - job_name: ingestion
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+
+  # --- Phase 2+: uncomment as services come online ---
   # - job_name: stream-processor # Go stream processor
   #   static_configs:
   #     - targets: ["stream-processor:9101"]
