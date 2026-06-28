@@ -1,0 +1,13 @@
+# FluxTape bar-sink (Go) — Fly.io worker
+app = "fluxtape-bar-sink"
+primary_region = "iad"
+
+[build]
+  dockerfile = "../Dockerfile.go"
+  [build.args]
+    SVC = "bar-sink"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"

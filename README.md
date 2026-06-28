@@ -7,6 +7,25 @@ live dashboard, with CDC into a cold analytics store and full observability.
 **Architecture & roadmap:** see [SPEC.md](SPEC.md) and
 [Architecture Decision Records](docs/adr/).
 
+## Deploy (Phase 4b — free tiers)
+
+Managed infra: **Upstash** (Kafka + Redis), **Neon** (Postgres). Compute on
+**Fly.io**; web on **Cloudflare Pages** (Vercel also works). Set provider
+connection strings as platform secrets, then:
+
+```powershell
+make deploy-fly    # 5 services -> Fly.io   (fly auth login first)
+make deploy-web    # React -> Cloudflare Pages
+```
+Note: managed Kafka needs TLS+SASL (set KAFKA_SASL_* secrets); free Postgres
+has no TimescaleDB so `bars` is a plain table.
+
+**Chosen v1 path (all free):** one Oracle always-free VM runs the whole stack:
+```bash
+make prod-up       # builds + runs 6 services + infra on the VM
+```
+Web deploys to Cloudflare/Vercel pointing at the VM API.
+
 ## Tech stack
 
 | Layer | Tech |

@@ -1,0 +1,5 @@
+// Cloudflare Pages config. Build: npm run build, output dist/.
+// Deploy: cd web && npx wrangler pages deploy dist --project-name fluxtape
+// Set VITE_API/VITE_WS/VITE_GRAFANA at build time to the deployed API URL.
+name = "fluxtape"
+pages_build_output_dir = "dist"

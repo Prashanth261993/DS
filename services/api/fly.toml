@@ -1,0 +1,20 @@
+# FluxTape API gateway (Go) — Fly.io app (public)
+app = "fluxtape-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "../Dockerfile.go"
+  [build.args]
+    SVC = "api"
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
