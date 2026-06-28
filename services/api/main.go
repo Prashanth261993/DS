@@ -43,6 +43,7 @@ var (
 func main() {
 	dsn := env("DATABASE_URL", "postgres://fluxtape:fluxtape@localhost:5432/fluxtape")
 	redisURL := env("REDIS_URL", "redis://localhost:6379")
+	brokers := env("KAFKA_BROKERS", "localhost:19092")
 
 	ctx := context.Background()
 	var err error
@@ -53,14 +54,19 @@ func main() {
 	opt, _ := redis.ParseURL(redisURL)
 	rdb = redis.NewClient(opt)
 
+	hub := newHub()
+	go hub.run()
+	go consumeBars(ctx, brokers, hub)
+
 	prometheus.MustRegister(cacheHits, cacheMiss)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/symbols", handleSymbols)
 	mux.HandleFunc("/bars", handleBars)
+	mux.HandleFunc("/ws", hub.serveWS)
 	mux.Handle("/metrics", promhttp.Handler())
 
-	log.Printf("api gateway on :8090 (REST + cache-aside)")
+	log.Printf("api gateway on :8090 (REST + cache-aside + WS fanout)")
 	log.Fatal(http.ListenAndServe(":8090", cors(mux)))
 }
 
