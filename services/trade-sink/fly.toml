@@ -1,0 +1,13 @@
+# FluxTape trade-sink (Go) — Fly.io worker
+app = "fluxtape-trade-sink"
+primary_region = "iad"
+
+[build]
+  dockerfile = "../Dockerfile.go"
+  [build.args]
+    SVC = "trade-sink"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"

@@ -52,3 +52,13 @@ build:         ## build all binaries + web bundle
 	cd web && npm ci && npm run build
 test:
 	cd services/processor && go test ./...
+
+## --- deploy (Phase 4b: fly.io + cloudflare) ---
+deploy-fly:    ## deploy all services to fly.io (run fly auth login first)
+	cd services/ingestion && fly deploy
+	cd services/processor && fly deploy
+	cd services/bar-sink && fly deploy
+	cd services/trade-sink && fly deploy
+	cd services/api && fly deploy
+deploy-web:    ## build + deploy web to cloudflare pages
+	cd web && npm ci && npm run build && npx wrangler pages deploy dist --project-name fluxtape

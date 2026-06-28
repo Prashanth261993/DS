@@ -1,0 +1,16 @@
+# FluxTape ingestion (Rust) — Fly.io app
+app = "fluxtape-ingestion"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Worker: no public service. Set secrets:
+#   fly secrets set KAFKA_BROKERS=... KAFKA_SASL_USER=... KAFKA_SASL_PASS=...
+[env]
+  RUST_LOG = "info"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
