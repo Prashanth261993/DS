@@ -86,7 +86,7 @@ Exchange WebSockets (Binance / Coinbase — free)
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
 | 0 | Repo scaffolding, SPEC, ADRs, docker-compose skeleton | ✅ done |
-| 1 | Ingestion (Rust) → Redpanda, partitioned by symbol, reconnect + backpressure | ⬜ |
+| 1 | Ingestion (Rust) → Redpanda, partitioned by symbol, reconnect + backpressure | ✅ done |
 | 2 | Stream processor (Go): tumbling-window VWAP/MA + out-of-order handling | ⬜ |
 | 3 | Dual sink: TimescaleDB (hot) + Postgres (history); idempotent writes | ⬜ |
 | 4 | API gateway (Go): REST + WebSocket + Redis cache/fanout; React dashboard | ⬜ |
