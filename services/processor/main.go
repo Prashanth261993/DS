@@ -1,8 +1,8 @@
 // FluxTape stream processor.
 //
-// Phase 2 / Step A: join a consumer group on the `trades` topic, deserialize
-// each trade, and log throughput. Windowing (VWAP/OHLCV bars) and emitting to
-// `bars_1s` are added in Step B.
+// Phase 2 / Step B: consume the `trades` topic in a consumer group, aggregate
+// into event-time 1s windows (OHLCV + VWAP), and emit closed bars to `bars_1s`.
+// Late events (past the watermark) are dropped and counted. Metrics on :9101.
 package main
 
 import (
@@ -28,7 +28,9 @@ type Trade struct {
 
 const (
 	topicTrades   = "trades"
+	topicBars     = "bars_1s"
 	consumerGroup = "fluxtape-processor"
+	metricsAddr   = ":9101"
 )
 
 func main() {
@@ -36,12 +38,8 @@ func main() {
 
 	cl, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers),
-		// Joining a consumer group gives us partition assignment + offset
-		// tracking + rebalancing (lesson 14).
 		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeTopics(topicTrades),
-		// On first run (no committed offset), start from the beginning so we
-		// can verify against existing data. Subsequent runs resume from commits.
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 	)
 	if err != nil {
@@ -49,17 +47,20 @@ func main() {
 	}
 	defer cl.Close()
 
-	// Graceful shutdown on Ctrl+C / SIGTERM.
+	startMetrics(metricsAddr)
+	log.Printf("metrics on %s/metrics", metricsAddr)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("stream processor started; group=%q consuming %q from %s", consumerGroup, topicTrades, brokers)
+	w := NewWindower()
+	log.Printf("stream processor started; group=%q %q -> %q from %s", consumerGroup, topicTrades, topicBars, brokers)
 
-	var consumed int
+	var emitted int
 	for {
 		fetches := cl.PollFetches(ctx)
 		if ctx.Err() != nil {
-			break // context cancelled (shutdown)
+			break
 		}
 		if errs := fetches.Errors(); len(errs) > 0 {
 			for _, e := range errs {
@@ -74,15 +75,28 @@ func main() {
 				log.Printf("skip bad record at offset %d: %v", r.Offset, err)
 				return
 			}
-			consumed++
-			if consumed%500 == 0 {
-				log.Printf("consumed=%d last: symbol=%s price=%.2f qty=%.8f part=%d offset=%d",
-					consumed, t.Symbol, t.Price, t.Quantity, r.Partition, r.Offset)
+			tradesProcessed.Inc()
+			if w.Add(t.Symbol, t.Price, t.Quantity, t.EventTimeMs) {
+				lateEvents.Inc()
 			}
 		})
+
+		// Emit any windows the watermark has now passed.
+		for _, bar := range w.CloseReady() {
+			payload, _ := json.Marshal(bar)
+			cl.Produce(ctx, &kgo.Record{Topic: topicBars, Key: []byte(bar.Symbol), Value: payload}, nil)
+			barsEmitted.Inc()
+			emitted++
+			if emitted%50 == 0 {
+				log.Printf("emitted=%d last: %s start=%d ohlc=%.2f/%.2f/%.2f/%.2f vol=%.4f vwap=%.2f n=%d",
+					emitted, bar.Symbol, bar.WindowStart, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.VWAP, bar.Count)
+			}
+		}
+		openWindows.Set(float64(w.Open()))
+		watermarkLag.Set(float64(w.WatermarkLag().Milliseconds()))
 	}
 
-	log.Printf("shutting down; consumed %d trades total", consumed)
+	log.Printf("shutting down; emitted %d bars total", emitted)
 }
 
 func getenv(key, fallback string) string {
