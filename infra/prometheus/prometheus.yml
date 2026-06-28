@@ -25,6 +25,12 @@ scrape_configs:
   - job_name: stream-processor # Go stream processor
     static_configs:
       - targets: ["host.docker.internal:9101"]
+  - job_name: bar-sink
+    static_configs:
+      - targets: ["host.docker.internal:9102"]
+  - job_name: trade-sink
+    static_configs:
+      - targets: ["host.docker.internal:9103"]
   # - job_name: api-gateway      # Go API gateway
   #   static_configs:
   #     - targets: ["api-gateway:9102"]
