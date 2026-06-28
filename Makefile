@@ -13,6 +13,13 @@ down:          ## stop services (keep data)
 	docker compose down
 reset:         ## stop and wipe data volumes
 	docker compose down -v
+stop-services: ## kill local service processes (not infra)
+	-pkill -f services/ingestion || true
+	-pkill -f services/processor || true
+	-pkill -f services/bar-sink || true
+	-pkill -f services/trade-sink || true
+	-pkill -f services/api || true
+	-pkill -f "vite" || true
 
 schema:        ## apply DB schema
 	@docker exec -i $(PG) psql -U fluxtape -d fluxtape < infra/db/schema.sql

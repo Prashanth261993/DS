@@ -23,5 +23,12 @@ switch ($cmd) {
     Write-Host "Started 6 services. Web: http://localhost:5173"
   }
   "down" { docker compose down }
-  default { Write-Host "usage: ./dev.ps1 [init|all|down]" }
+  "stop" {
+    # Stop the 6 local services (Rust/Go/web), leave infra running.
+    Get-Process -Name ingestion,processor,bar-sink,trade-sink,api -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-CimInstance Win32_Process -Filter "name='node.exe'" | Where-Object { $_.CommandLine -like '*vite*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+    Get-CimInstance Win32_Process -Filter "name='cargo.exe'" | Where-Object { $_.CommandLine -like '*ingestion*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+    Write-Host "Stopped local services (infra still up; use ./dev.ps1 down for infra)."
+  }
+  default { Write-Host "usage: ./dev.ps1 [init|all|stop|down]" }
 }
