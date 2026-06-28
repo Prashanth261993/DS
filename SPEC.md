@@ -106,6 +106,12 @@ Staff-level story.
   Binance/others behind a common normalized `Trade` schema.
 - **Decimal money type:** replace `f64` price/quantity with a fixed-point/decimal
   type to avoid float rounding on monetary values.
+- **Partition skew / hot-key handling:** v1 keys the `trades` topic by symbol
+  (preserves per-symbol ordering). A dominant symbol (e.g. BTC) can create a hot
+  partition under load. During load/chaos testing (Phase 7), monitor per-partition
+  consumer lag; if skewed, mitigate via (a) more partitions, (b) an explicit
+  balanced partitioner, or (c) sub-keying the hot symbol (`SYMBOL#n`). Sub-keying
+  is safe here because the core aggregations (VWAP, MA, volume) are commutative.
 
 ---
 
