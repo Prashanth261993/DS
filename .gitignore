@@ -37,3 +37,8 @@ data/
 
 # Playwright MCP scratch output (screenshots saved explicitly to docs/images)
 .playwright-mcp/
+
+# Recorder build artifacts (keep record.js only)
+tools/recorder/node_modules/
+tools/recorder/out/
+tools/recorder/*.png
