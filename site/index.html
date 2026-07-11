@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FluxTape — Real-Time Market Data Platform</title>
+  <meta name="description" content="A real-time crypto market-data platform: streaming ETL, pub/sub, polyglot persistence, CQRS, CDC, and full observability." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="badge">Distributed Systems · Portfolio Project</div>
+      <h1>FluxTape</h1>
+      <p class="tag">A real-time crypto market-data platform — live trades ingested, stream-processed into
+        analytics, stored in polyglot databases, and served to a live dashboard, with full observability.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/Prashanth261993/DS" target="_blank">View on GitHub ↗</a>
+        <a class="btn" href="#architecture">Architecture</a>
+        <a class="btn" href="#demo">Live demo</a>
+      </div>
+      <div class="stack">
+        <span>Rust</span><span>Go</span><span>TypeScript / React</span><span>Redpanda (Kafka)</span>
+        <span>TimescaleDB</span><span>Postgres</span><span>Redis</span><span>Prometheus</span><span>Grafana</span><span>Docker</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>What it is</h2>
+      <p>FluxTape ingests a live firehose of crypto trades from Coinbase, processes them through a streaming
+        pipeline (event-time windowed analytics: OHLCV bars, VWAP, moving averages), persists them across
+        purpose-built databases, and serves both a historical REST API and a live WebSocket feed to a
+        React trading dashboard — with the whole system instrumented end-to-end. It runs entirely on free
+        infrastructure, locally via <code>docker-compose</code> and on a free cloud VM.</p>
+      <p>The engineering priorities mirror what large-scale systems teams care about: correct streaming
+        semantics under out-of-order events, backpressure, idempotency, partitioning, caching, and
+        observability — not a CRUD app with buzzwords.</p>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture</h2>
+      <pre class="mermaid">
+flowchart LR
+  EX["Coinbase WebSocket<br/>(live trades)"] --> ING["Ingestion<br/>[Rust] backpressure, reconnect"]
+  ING --> K["Redpanda<br/>(Kafka API) topic: trades<br/>partitioned by symbol"]
+  K --> SP["Stream Processor<br/>[Go] tumbling windows + watermarks<br/>OHLCV / VWAP / SMA"]
+  SP --> B["topic: bars_1s"]
+  B --> BS["bar-sink [Go]"] --> TS[("TimescaleDB<br/>hot bars (hypertable)")]
+  K --> TSK["trade-sink [Go]"] --> PG[("Postgres<br/>source of truth")]
+  B --> API["API Gateway [Go]<br/>REST + WebSocket"]
+  TS --> API
+  API --> RD[("Redis<br/>cache-aside")]
+  API --> UI["React Dashboard<br/>ECharts candlesticks"]
+  ING -.metrics.-> PROM["Prometheus"]
+  SP -.metrics.-> PROM
+  API -.metrics.-> PROM
+  PROM --> GRAF["Grafana dashboards"]
+  UI -. embeds .-> GRAF
+      </pre>
+      <p class="note">Ordered-per-symbol, parallel-across-symbols partitioning · at-least-once delivery made
+        effectively-once via idempotent upserts · CQRS read path fully separate from the write pipeline.</p>
+    </section>
+
+    <section id="demo">
+      <h2>Live demo</h2>
+      <p>Live candlesticks with SMA overlays, updating in real time over a WebSocket. Static captures below;
+        an animated capture of the live feed is added when the hosted demo is online.</p>
+      <div class="gallery">
+        <figure><img src="assets/phase4-live-dashboard.png" alt="Live trading dashboard" /><figcaption>React dashboard — live candles + SMA5/SMA20</figcaption></figure>
+        <figure><img src="assets/phase4-health-dashboard.png" alt="Embedded Grafana health" /><figcaption>Embedded Grafana — one pane of glass</figcaption></figure>
+        <figure><img src="assets/phase1-ingestion-dashboard.png" alt="Ingestion metrics" /><figcaption>Ingestion — throughput, latency p99, backpressure</figcaption></figure>
+        <figure><img src="assets/phase2-processor-dashboard.png" alt="Processor metrics" /><figcaption>Stream processor — bars, watermark lag, open windows</figcaption></figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Delivered in phases</h2>
+      <table class="phases">
+        <tr><th>Phase</th><th>Deliverable</th><th>Key concepts</th></tr>
+        <tr><td>0</td><td>Local infra (docker-compose)</td><td>Environment parity</td></tr>
+        <tr><td>1</td><td>Ingestion (Rust) → Redpanda</td><td>WebSockets, async/tokio, backpressure, Kafka producer, reconnect + jitter</td></tr>
+        <tr><td>2</td><td>Stream processor (Go)</td><td>Consumer groups, event-time windows, watermarks, VWAP/SMA</td></tr>
+        <tr><td>3</td><td>Storage sinks</td><td>Polyglot persistence, idempotent upserts, hypertables</td></tr>
+        <tr><td>4</td><td>API gateway + React dashboard</td><td>CQRS, cache-aside, WebSocket fanout, CDN embed</td></tr>
+        <tr><td>4b</td><td>Deploy (single free VM)</td><td>Multi-stage Docker, 12-factor config</td></tr>
+        <tr><td>5+</td><td>CDC · observability · load/chaos</td><td>WAL replication, OTel, SLOs (planned)</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Distributed-systems concepts demonstrated</h2>
+      <ul class="concepts">
+        <li><b>Partitioning</b> — key by symbol: ordered per symbol, parallel across; hot-key mitigation.</li>
+        <li><b>Backpressure</b> — bounded channel + Kafka queue; overload becomes a signal, not an OOM.</li>
+        <li><b>Event-time windowing &amp; watermarks</b> — correct aggregates under out-of-order/late events.</li>
+        <li><b>Idempotency</b> — upserts on natural keys turn at-least-once into effectively-once.</li>
+        <li><b>Polyglot persistence</b> — Timescale (hot), Postgres (truth), Redis (cache/fanout).</li>
+        <li><b>CQRS</b> — read path (REST + WS) fully separate from the write pipeline.</li>
+        <li><b>Observability</b> — Prometheus metrics, Grafana dashboards, consumer-lag as the health signal.</li>
+        <li><b>Resilience</b> — reconnect with exponential backoff + full jitter; graceful shutdown.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>Built as a Staff/Senior-level systems portfolio project. Rust · Go · TypeScript.
+        <a href="https://github.com/Prashanth261993/DS" target="_blank">Source on GitHub ↗</a></p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "dark" });
+  </script>
+</body>
+</html>
